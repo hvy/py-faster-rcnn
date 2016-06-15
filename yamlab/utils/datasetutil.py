@@ -1,4 +1,4 @@
-from utils import fileutil
+import fileutil
 
 
 def filename_to_id(filename):
@@ -54,7 +54,7 @@ def row_to_annotations(row):
 
         annotations.append(annotation)
 
-    return annotations
+    return annotations, image_filename
 
 
 def annotations_from_csv(filename):
@@ -62,15 +62,17 @@ def annotations_from_csv(filename):
     csvfile = fileutil.read_csv(filename)
 
     # Process the csv file
+    image_filenames = []
     annotations = []
     for row in csvfile:
         trailing = row.pop()  # Remove last value from each row caused by trailing comma
         assert trailing == ''
 
         # Parse the row to an annotation
-        annotations_in_row = row_to_annotations(row)
+        annotations_in_row, image_filename = row_to_annotations(row)
         annotations += annotations_in_row
+        image_filenames.append(image_filename)
 
     print 'Total annotations: {}'.format(len(annotations))
 
-    return annotations
+    return annotations, image_filenames

@@ -12,21 +12,36 @@ from utils import fileutil
 
 
 def convert_annotation_file(src_csv_filename, dst_json_filename):
-    if os.path.isfile(dst_json_filename):
-        print('File already converted to {}'.format(dst_json_filename))
-        return
+    # if os.path.isfile(dst_json_filename):
+    #     print('File already converted to {}'.format(dst_json_filename))
+    #     return
 
     print('Converting csv file {} to {}'.format(src_csv_filename, dst_json_filename))
 
     # Parse the csv file assuming that it contains the annotation data
     #  in a valid format.
-    src_as_json = datasetutil.annotations_from_csv(src_csv_filename)
+    src_as_json, image_filenames = datasetutil.annotations_from_csv(src_csv_filename)
 
     fileutil.write_json(dst_json_filename, src_as_json)
+
+    return image_filenames
 
 
 def replace_annotations(original, modified):
     original['annotations'] = modified
+    return original
+
+
+def extract_images(original, filenames):
+    imgs = original['images']
+    imgs_subset = []
+    for img in imgs:
+        if img['file_name'] in filenames:
+            imgs_subset.append(img)
+    original['images'] = imgs_subset
+
+    assert len(filenames) == len(original['images'])
+
     return original
 
 
@@ -41,13 +56,14 @@ if __name__ == '__main__':
     yl_val_dst = os.path.join(yl_root, 'val2014/val_annotations.json')
 
     # MSCOCO file paths
-    coco_root = '/home/ubuntu/data/yamlab/MSCOCO/annotations'
-    coco_train_json = os.path.join(coco_root, 'instances_train2014.json')
-    coco_val_json = os.path.join(coco_root, 'instances_val2014.json')
+    coco_root = '/home/ubuntu/data/yamlab/MSCOCO'
+    coco_ann = os.path.join(coco_root, 'annotations')
+    coco_train_json = os.path.join(coco_ann, 'instances_train2014.json')
+    coco_val_json = os.path.join(coco_ann, 'instances_val2014.json')
 
     # 1. Convert the Yamlab CSV annotations to JSON files
-    convert_annotation_file(yl_train_csv, yl_train_dst)
-    convert_annotation_file(yl_val_csv, yl_val_dst)
+    train_img_filenames = convert_annotation_file(yl_train_csv, yl_train_dst)
+    val_img_filenames = convert_annotation_file(yl_val_csv, yl_val_dst)
 
     # 2. Load the Yamlab JSON files
     yl_train = fileutil.read_json(yl_train_dst)
@@ -61,6 +77,32 @@ if __name__ == '__main__':
     replaced_train = replace_annotations(coco_train, yl_train)
     replaced_val = replace_annotations(coco_val, yl_val)
 
-    # 5. Write the new MSCOCO JSON annotations to disk
+    # 5. Replace the MSCOCO JSON images in the annotations with the images
+    # that we want to use.
+    replaced_train = extract_images(replaced_train, train_img_filenames)
+    replaced_val = extract_images(replaced_val, val_img_filenames)
+
+    # 6. Write the new MSCOCO JSON annotations to disk
     fileutil.write_json(coco_train_json, replaced_train)
     fileutil.write_json(coco_val_json, replaced_val)
+
+    # 7. Extract only the images that we want to use from the original MSCOCO
+    """
+    mscoco_val_img = os.path.join(coco_root, 'val2014')
+    yamlab_val_img = os.path.join(coco_root, 'val2014_yamlab')
+
+    for val_img in val_img_filenames:
+        mscoco_val_img_filename = os.path.join(mscoco_val_img, val_img)
+        yamlab_val_img_filename = os.path.join(yamlab_val_img, val_img)
+        fileutil.copy_file(src=mscoco_val_img_filename, dst=yamlab_val_img_filename)
+
+    mscoco_train_img = os.path.join(coco_root, 'train2014')
+    yamlab_train_img = os.path.join(coco_root, 'train2014_yamlab')
+
+    for train_img in train_img_filenames:
+        mscoco_train_img_filename = os.path.join(mscoco_train_img, train_img)
+        yamlab_train_img_filename = os.path.join(yamlab_train_img, train_img)
+        fileutil.copy_file(src=mscoco_train_img_filename, dst=yamlab_train_img_filename)
+        i += 1
+        print(i)
+    """

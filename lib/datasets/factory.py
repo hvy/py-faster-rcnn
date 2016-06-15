@@ -11,6 +11,7 @@ __sets = {}
 
 from datasets.pascal_voc import pascal_voc
 from datasets.coco import coco
+import datasets.yamlab as yamlab
 import numpy as np
 
 # Set up voc_<year>_<split> using selective search "fast" mode
@@ -30,6 +31,12 @@ for year in ['2015']:
     for split in ['test', 'test-dev']:
         name = 'coco_{}_{}'.format(year, split)
         __sets[name] = (lambda split=split, year=year: coco(split, year))
+
+# Set up yamlab_coco_2014_<split>
+for year in ['2014']:
+    for split in ['train', 'val']:
+        name = 'yamlab_coco_{}_{}'.format(year, split)
+        __sets[name] = (lambda split=split, year=year: yamlab.coco(split, year))
 
 def get_imdb(name):
     """Get an imdb (image database) by name."""

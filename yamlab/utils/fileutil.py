@@ -1,5 +1,7 @@
+import os
 import csv
 import json
+import shutil
 
 
 def read_csv(filename, delimiter=','):
@@ -33,6 +35,22 @@ def write_json(filename, data, indent=None):
             json.dump(data, jsonfile, indent=indent)
         else:
             json.dump(data, jsonfile)
+
+
+def copy_file(src, dst):
+    """
+    Args:
+        src (str): Source file name.
+        dst (str): Destination file name.
+    """
+    shutil.copyfile(src, dst)
+
+
+def filenames_in(dirname):
+    filenames = []
+    for filename in os.listdir(dirname):
+        filenames.append(filename)
+    return filenames
 
 
 if __name__ == '__main__':
