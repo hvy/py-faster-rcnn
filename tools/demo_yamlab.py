@@ -27,6 +27,8 @@ import scipy.io as sio
 import caffe, os, sys, cv2
 import argparse
 
+import urllib2 as urllib
+
 CLASSES = ('__background__',
            'stroller', 'hat', 'wallet', 'ashtray')
 
@@ -40,7 +42,15 @@ NETS = {'vgg16': ('VGG16',
                   'VGG16_faster_rcnn_final_yamlab.caffemodel')}
 
 
-def vis_detections(im, class_name, dets, filename, thresh=0.5):
+def url_to_image(url):
+    req = urllib.Request(url, headers={'User-Agent': 'Magic Browser'})
+    resp = urllib.urlopen(req)
+    image = np.asarray(bytearray(resp.read()), dtype='uint8')
+    image = cv2.imdecode(image, cv2.IMREAD_COLOR)
+    return image
+
+
+def vis_detections(im, class_name, dets, filename='out.jpg', thresh=0.5):
     """Draw detected bounding boxes."""
     inds = np.where(dets[:, -1] >= thresh)[0]
     if len(inds) == 0:
@@ -72,15 +82,26 @@ def vis_detections(im, class_name, dets, filename, thresh=0.5):
     plt.axis('off')
     plt.tight_layout()
     # plt.draw()
-    plt.savefig('yamlabout/out_' + filename)
+
+    # Write the image to disk instead of drawing a plot since
+    # we usually run this script from an terminal only ssh session.
+    print 'Saving to file {}'.format('yamlabout/' + filename)
+    plt.savefig('yamlabout/' + filename)
 
 def demo(net, image):
     """Detect object classes in an image using pre-computed object proposals."""
 
     # Load the demo image
     # im_file = os.path.join(cfg.DATA_DIR, 'demo', image_name)
-    im_file = image['path']
-    im = cv2.imread(im_file)
+    im = None
+    if 'url' in image:
+        # Download image from URL
+        im = url_to_image(image['url'])
+    elif 'path' in image:
+        # Read image from disk
+        im_file = image['path']
+        im = cv2.imread(im_file)
+
 
     # Detect all object classes and regress object bounds
     timer = Timer()
@@ -113,6 +134,10 @@ def parse_args():
                         action='store_true')
     parser.add_argument('--net', dest='demo_net', help='Network to use [vgg16]',
                         choices=NETS.keys(), default='vgg16')
+    parser.add_argument('--url', dest='url', help='URL to the image',
+                        default='')
+    parser.add_argument('--saveas', dest='saveas', help='Filename of the destination image',
+                        default='out.jpg')
 
     args = parser.parse_args()
 
@@ -157,12 +182,13 @@ if __name__ == '__main__':
 
     # Test on a single image
     im = {}
-    im['path'] = '/home/ubuntu/code/forked/py-faster-rcnn/hat.jpg'
-    im['im_name'] = 'hat.jpg'
+    # im['path'] = '/home/ubuntu/code/forked/py-faster-rcnn/hat.jpg'
+    im['url'] = args.url
+    im['im_name'] = args.saveas
     images.append(im)
 
-
     # Test on all images in a directory
+    #
     """
     im_dir = '/home/ubuntu/data/yamlab/MSCOCO/images_yamlab/val2014'
     # count = 0
@@ -183,7 +209,10 @@ if __name__ == '__main__':
 
     for image in images:
         print '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
-        print 'Demo for {}'.format(image['path'])
+        if 'url' in image:
+            print 'Demo for {}'.format(image['url'])
+        elif 'path' in image:
+            print 'Demo for {}'.format(image['path'])
         demo(net, image)
 
     plt.show()
